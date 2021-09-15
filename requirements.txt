@@ -1,0 +1,6 @@
+pandas
+jupyterlab
+simpletransformers
+seaborn
+pytest
+unidecode

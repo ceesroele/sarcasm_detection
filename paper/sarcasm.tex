@@ -1,0 +1,188 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[hyperref]{acl2021}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{graphicx}
+\renewcommand{\UrlFont}{\ttfamily\small}
+
+% This is not strictly necessary, and may be commented out,
+% but it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+
+\aclfinalcopy % Uncomment this line for the final submission
+
+%\setlength\titlebox{5cm}
+% You can expand the titlebox if you need extra space
+% to show all the authors. Please do not make the titlebox
+% smaller than 5cm (the original size); we will check this
+% in the camera-ready version and ask you to change it back.
+
+\newcommand\BibTeX{B\textsc{ib}\TeX}
+
+\title{Detecting Sarcasm with RoBERTa}
+\author{Cees Roele \\
+        cees.roele@gmail.com}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+\addcontentsline{toc}{section}{Abstract}
+Sarcasm is a form of figurative language. To understand a sarcastic remark we should attribute a meaning to it that is other than the meaning of its words according to a dictionary. 
+The present short paper addresses the notion of sarcasm, discusses a large dataset of sarcastic and non-sarcastic remarks, explains what kind of machine learning modelling would fit detecting sarcasm, reports on the results of an implementation of such modelling, places it in context with comparable efforts, and points out potential improvements of the offered system.
+\end{abstract}
+
+
+\section{Introduction}
+\addcontentsline{toc}{section}{Introduction}
+
+Understanding how sarcasm works for people helps us to understand \textit{why} an approach to detect it might be successful or not.
+
+\begin{quotation}
+\textit{Sarcasm is an ironic or satirical remark tempered by humor. Mainly, people use it to \textbf{say the opposite of what's true} to make someone look or feel foolish. For example, let's say you see someone struggling to open a door and you ask them, "Do you want help?" If they reply by saying, "No thanks. I'm really enjoying the challenge," you'll know they're being sarcastic. Sarcasm is \textbf{all about the context and tone of voice}, which is why it works better verbally. It's something you'll know when you hear it.\footnote{Emphasis added. \url{https://examples.yourdictionary.com/examples-of-sarcasm.html}}}
+\end{quotation}
+
+This sounds a bit alarming to the prospect of successfully detecting sarcasm on the basis of a textual dataset: \textit{seeing} someone or \textit{hearing} their tone of voice are not available. We need particles of text to identify the occurrence of sarcasm.\par 
+
+Let's read on a bit in the source of the previous quotation:\par 
+
+\begin{quotation}
+\textit{Sarcasm can come in all different types.  Some are easier to catch on to than others.}
+\begin{itemize}
+\item{\textit{\textbf{self-deprecating} - where you poke fun at yourself}}
+\item{\textit{\textbf{deadpan} - sarcasm given in serious tone}}
+\item{\textit{\textbf{brooding} - saying the opposite of what you mean in an irritated tone}}
+\item{\textit{\textbf{juvenile} - obnoxious statements that might come across as annoying}}
+\end{itemize}
+\end{quotation}
+ 
+Whereas \textit{tone of voice} seems to refer exclusively to a sound, \textit{serious tone} and \textit{irritated tone} might involve specific wording. Could \textit{poke fun at yourself} and \textit{obnoxious statements} also be about used words?\par 
+
+In \cite{10.1007/978-981-16-1543-6_6} we find that the following words have a high occurrence in sarcastic comments: 'oh', 'know', 'like', 'yeah', 'well', 'go', 'right', 'think', and 'really'.\par 
+
+Yet, we see little here of the \textit{self-deprecating}, \textit{deadpan}, \textit{brooding}, or the \textit{juvenile}. \par 
+
+To make sense of all this, we should understand what people do and aim for in a conversation.  When people use sarcasm to "say the opposite of what is true",  they don't just want their listeners to interpret the correct meaning of their figurative use of language, they also want the listeners to know that they know they are deliberately being figurative.  After all, if you say what is being false, people might lose confidence in the veracity of any of your statements. To prevent that from happening, you give slight hints that your language is figurative. \par 
+
+My take: the identification of sarcasm from words doesn't come from the words that are part of the sarcastic statement, but from the introductory words that the speaker utters to indicate to the listener that sarcasm is coming up. Yet, these words are not mandatory, not normalised, not meant to be crystal clear, and not really necessary.  We need a full "understanding" of the language in order to understand sarcasm.\par 
+
+\section{Data}
+\addcontentsline{toc}{section}{Data}
+
+The data used here is described in \cite{khodak-etal-2018-large}.  It is scraped from reddit and is a subset of comments published between over a period between 2009 and 2017.\par
+
+The labelling was done by the authors on the reddit platform themselves, so it tells whether commenters themselves see their text as sarcastic, rather than whether other people perceive it as such.\par  
+
+Several cleaning operations were carried out to create the original dataset: noisy and uninformative comments were removed,  comments that were descendents of sarcastic comments were removed, URLs were removed, and non-ASCII characters were converted into ASCII. \par
+The original dataset contained the whole sequence of a thread leading up to a sarcastic comment, but the presently used dataset contains only a single \texttt{parent\_comment}. The dataset contains about nine hundred thousand labelled comments and a test set of about one hundred thousand unlabelled comments, totalling about one million records.\par 
+
+
+\section{Choice of model}
+\addcontentsline{toc}{section}{Choice of Model}
+
+Given the general characteristics of the notion of sarcasm and the specific dataset for which we want to make predictions a choice of model should address the following conditions:
+
+\begin{itemize}
+\item{Actual sarcastic statements can be made with the full variety of the language}
+\item{There are no definite social norms for introducing sarcasm.}
+\item{The actual dataset might contain non-grammatical language}
+\item{The actual dataset contains markup, which is not grammatical}
+\end{itemize}
+
+These conditions are well-suited to be addressed by:
+\begin{itemize}
+\item{Transformer architecture,  as specified in \cite{NIPS2017_3f5ee243}}
+\item{Pre-training on a large body of texts so the model has extensive "knowledge" of relations between words. E.g. BERT \cite{devlin2019bert} and RoBERTa \cite{liu2019roberta}.}
+\item{Byte Pair Encoding (BPE) tokenizer rather than traditional word-based tokenizer}
+\end{itemize}
+
+Both BERT and RoBERTa fulfill the above conditions. RoBERTa is architecturally BERT, but with a different pre-training scheme. As RoBERTa performs better on multiple tests - as demonstrated in \cite{liu2019roberta}, here I selected RoBERTa.
+
+
+\section{System}
+\addcontentsline{toc}{section}{System}
+
+Implementation was done in python using Simpletransformers\footnote{\url{https://simpletransformers.ai/},} which is a layer over Hugging face transformers\footnote{\url{https://huggingface.co/transformers/}.} Simpletransformers contains a standard implementation for binary classification of texts. Dataframes serve as input format for the training and evaluation functions of Simpletransformers. All that is needed is to given the columns to be read the names expected by Simpletransformers.\par
+
+The underlying used model was \texttt{RoBERTa-base}\footnote{\url{https://github.com/pytorch/fairseq/tree/master/examples/roberta}}.\par 
+
+Used GPU was an RTX 2070. \par
+
+
+\section{Data preparation}
+\addcontentsline{toc}{section}{Data preparation}
+
+The original dataset was already cleaned of  non-ASCII characters. All that needed to be done in addition to that was to read data from the CSV file such that relevant fields like \texttt{comment} and \texttt{parent\_comment} were converted to strings and that any NaN values for these string fields were converted to empty strings.\par
+
+RoBERTa's Byte Pair Encoding tokenizer elegantly automates any vocabulary operations traditionally needed for preparing textual data and it also deals elegantly with grammatical exuberance and with markdown\footnote{\textit{"Byte Pair Encoding — The Dark Horse of Modern NLP"}, Akashdeep Singh Jaswal, 22 Nov 2019, \url{https://towardsdatascience.com/byte-pair-encoding-the-dark-horse-\\of-modern-nlp-eb36c7df4f10}}.\par
+
+\section{Training and evaluation}
+\addcontentsline{toc}{section}{Training and evaluation}
+
+As training with even a subset of the large dataset takes a long time, I first did several experiments with smaller subsets of some 10,000 items.
+\begin{itemize}
+\item{Is there significant impact of markup?}
+\item{Is there significant impact of adding the \texttt{parent\_comment} to the \texttt{comment}?\footnote{In \cite{a-d-2020-sarcasm} we find a slightly better result when training only on the sarcastic comment. But in \cite{dong-etal-2020-transformer} we find a significant (7\%) improvement when the context is included.}}
+\item{Is the estimated processing time for training, evaluation, and prediction making attaining the deadline impossible?}
+\end{itemize}
+
+In all cases my experiments showed that it didn't.
+
+From the training dataset I used 200,000 items for training,  10,000 for development (evaluation during training), and 20,000 for evaluation after the training was finished.  An experiment with different sized training sets shows less than one percent improvement when training 200,000 instead of 100,000 items.\par
+
+Training with 200,000 items takes about thirty minutes per epoch.\par
+
+\begin{table}[ht]
+\centering % used for centering table
+\begin{tabular}{r c c c l} 
+\hline \textbf{Training} & \textbf{Precision}  & \textbf{Recall} & \textbf{F1} \\ 
+\hline
+  4,400 & 0.685 & 0.730 & 0.707 \\
+100,000 & 0.690 & 0.830 & 0.753 \\
+200,000 & 0.758 & 0.761  & 0.759 \\
+\hline %inserts single line
+\end{tabular}
+\caption{Metrics per number of training items}
+\label{table:result}
+\end{table}
+
+
+\section{Issues}
+\addcontentsline{toc}{section}{Issues}
+
+I struggled with technical issues.  While I have used Simpletransformers before with good results, I now found that:
+\begin{itemize}
+\item{Early-stopping didn't work}
+\item{The selection of the best model after training did not in fact select the best model}
+\end{itemize}
+
+Early stopping functionality could just be skipped, but not obtaining the best model was a show-stopper.\par
+
+I found a workaround by parsing intermediate training results, converting them to the desired metrics, and and then selecting the model associated with the best metrics. 
+
+
+\section{Comparison with other work}
+\addcontentsline{toc}{section}{Comparison with other work}
+
+A subset of 4400 items of the Khodak reddit dataset was used as a basis for a task of the second \textit{Figurative Language Workshop.}  In the overview paper of that workshop \cite{ghosh-etal-2020-report} we find a summary of an extensive mix of approaches\footnote{If you are interested in the full proceedings of the workshop, you can find them at \url{https://aclanthology.org/2020.figlang-1.pdf}.}. Many of the considerations in the current approach can be found there.\par 
+
+Following the overachieving number one, the sub-top ranking efforts in that workshop got an F1-score of about 0.75.  In \ref{table:result} the F1-score for 4400 items was 0.707.
+
+
+\section{Improvements}
+\addcontentsline{toc}{section}{Improvements}
+
+The current results were attained without any hyperparameter optimisation.  This takes a lot of processing time, but might lead to positive results.\par
+
+Influence of author, score,  and subreddit category have been ignored in the current approach.  From \cite{khodak-etal-2018-large} we know that there is a correlation, e.g. more sarcasm in the \texttt{worldnews} subreddit than in \texttt{ask reddit}. But is there causation? Of course, such an improvement will be specific for the currently studied dataset and not lead to generally better detection of sarcasm. \par 
+
+Lastly,  quite generally, looking at the results of different contests, we find that best-ranking teams have often applied ensemble methods and data augmentation.  Both approaches should be possible in the area of sarcasm detection too.
+
+\section{Conclusion}
+\addcontentsline{toc}{section}{Conclusion}
+
+This was rather fun. I didn't plan on getting into the topic as deeply as I did.  It was never meant to be a research project. I enjoyed putting my existing skills in practice and I also enjoyed reading up on the efforts of others and better understanding the many ways in which solutions can be improved.
+
+\bibliography{bibliography-file}
+\bibliographystyle{acl_natbib}
+\end{document}

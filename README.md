@@ -1,5 +1,8 @@
 # Detecting sarcasm with RoBERTa
 
+Below are instruction on installing and using the code accompanying
+[Detecting Sarcasm with RoBERTa](https://github.com/ceesroele/sarcasm_detection/blob/main/paper/sarcasm.pdf).
+
 ## Installation
 
 * Create your own environment with conda and activate it.
